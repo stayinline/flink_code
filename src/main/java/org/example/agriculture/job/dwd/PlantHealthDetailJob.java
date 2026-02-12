@@ -1,6 +1,7 @@
 package org.example.agriculture.job.dwd;
 
 import com.clickhouse.jdbc.ClickHouseDriver;
+import lombok.Data;
 import org.apache.flink.api.common.eventtime.*;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -209,10 +210,11 @@ public class PlantHealthDetailJob {
                     @Override
                     public boolean filter(PlantVisionData data) throws Exception {
                         return data != null &&
-                               data.getGreenhouseId() != null && !data.getGreenhouseId().isEmpty() &&
-                               data.getPlantBasic() != null &&
-                               data.getPlantHealth() != null &&
-                               data.getFruitInfo() != null;
+                                data.getGreenhouseId() != null &&
+                                !data.getGreenhouseId().isEmpty() &&
+                                data.getPlantBasic() != null &&
+                                data.getPlantHealth() != null &&
+                                data.getFruitInfo() != null;
                     }
                 });
     }
@@ -249,8 +251,8 @@ public class PlantHealthDetailJob {
                     @Override
                     public boolean filter(SoilSensorData data) throws Exception {
                         return data != null &&
-                               data.getGreenhouseId() != null && !data.getGreenhouseId().isEmpty() &&
-                               data.getMetrics() != null;
+                                data.getGreenhouseId() != null && !data.getGreenhouseId().isEmpty() &&
+                                data.getMetrics() != null;
                     }
                 });
     }
@@ -287,8 +289,8 @@ public class PlantHealthDetailJob {
                     @Override
                     public boolean filter(GreenhouseSensorData data) throws Exception {
                         return data != null &&
-                               data.getGreenhouseId() != null && !data.getGreenhouseId().isEmpty() &&
-                               data.getMetrics() != null;
+                                data.getGreenhouseId() != null && !data.getGreenhouseId().isEmpty() &&
+                                data.getMetrics() != null;
                     }
                 });
     }
@@ -321,6 +323,7 @@ public class PlantHealthDetailJob {
     /**
      * DWD植物健康详情数据结构
      */
+    @Data
     public static class DwdPlantHealthDetail {
         private String greenhouseId;
         private java.time.LocalDateTime ts;
@@ -360,95 +363,5 @@ public class PlantHealthDetailJob {
             this.humidity = humidity;
         }
 
-        public String getGreenhouseId() {
-            return greenhouseId;
-        }
-
-        public java.time.LocalDateTime getTs() {
-            return ts;
-        }
-
-        public String getCropType() {
-            return cropType;
-        }
-
-        public String getGrowthStage() {
-            return growthStage;
-        }
-
-        public double getPlantHeightCm() {
-            return plantHeightCm;
-        }
-
-        public int getLeafCount() {
-            return leafCount;
-        }
-
-        public double getCanopyCoverage() {
-            return canopyCoverage;
-        }
-
-        public double getChlorophyllIndex() {
-            return chlorophyllIndex;
-        }
-
-        public double getWiltingScore() {
-            return wiltingScore;
-        }
-
-        public int getFruitCount() {
-            return fruitCount;
-        }
-
-        public String getDiseaseRisk() {
-            return diseaseRisk;
-        }
-
-        public String getPestRisk() {
-            return pestRisk;
-        }
-
-        public double getSoilMoisture() {
-            return soilMoisture;
-        }
-
-        public double getSoilEc() {
-            return soilEc;
-        }
-
-        public double getSoilPh() {
-            return soilPh;
-        }
-
-        public double getTemperature() {
-            return temperature;
-        }
-
-        public double getHumidity() {
-            return humidity;
-        }
-
-        @Override
-        public String toString() {
-            return "DwdPlantHealthDetail{" +
-                    "greenhouseId='" + greenhouseId + '\'' +
-                    ", ts=" + ts +
-                    ", cropType='" + cropType + '\'' +
-                    ", growthStage='" + growthStage + '\'' +
-                    ", plantHeightCm=" + plantHeightCm +
-                    ", leafCount=" + leafCount +
-                    ", canopyCoverage=" + canopyCoverage +
-                    ", chlorophyllIndex=" + chlorophyllIndex +
-                    ", wiltingScore=" + wiltingScore +
-                    ", fruitCount=" + fruitCount +
-                    ", diseaseRisk='" + diseaseRisk + '\'' +
-                    ", pestRisk='" + pestRisk + '\'' +
-                    ", soilMoisture=" + soilMoisture +
-                    ", soilEc=" + soilEc +
-                    ", soilPh=" + soilPh +
-                    ", temperature=" + temperature +
-                    ", humidity=" + humidity +
-                    '}';
-        }
     }
 }
