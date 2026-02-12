@@ -1,4 +1,4 @@
-package org.example.job;
+package org.example.agriculture.job.ods;
 
 import com.clickhouse.jdbc.ClickHouseDriver;
 import org.apache.flink.api.common.functions.FilterFunction;
@@ -12,7 +12,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.example.dto.GreenhouseSensorData;
+import org.example.agriculture.dto.GreenhouseSensorData;
 
 import java.sql.*;
 import java.util.*;
@@ -21,7 +21,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-public class GreenhouseSensorJob {
+public class EnvDataJob {
 
     // 告警配置管理类 - 静态单例模式
     private static class AlertConfigManager {
