@@ -162,8 +162,6 @@ CREATE TABLE default.ods_greenhouse_plant_vision
 
     `greenhouse_id` String COMMENT '温室ID',
 
-    `zone_id` String COMMENT '区域ID',
-
     `camera_id` String COMMENT '摄像头ID',
 
     `timestamp` UInt64 COMMENT '识别时间(ms)',
@@ -209,7 +207,6 @@ CREATE TABLE default.ods_greenhouse_plant_vision
 ENGINE = MergeTree
 PARTITION BY toDate(event_time)
 ORDER BY (greenhouse_id,
- zone_id,
  timestamp)
 SETTINGS index_granularity = 8192;
 
@@ -258,7 +255,6 @@ ORDER BY (greenhouse_id, sensor_id, ts);
 CREATE TABLE default.dwd_greenhouse_plant_health_detail
 (
     greenhouse_id String COMMENT '温室ID',
-    zone_id String COMMENT '区域ID',
     ts DateTime COMMENT '识别时间',
 
     crop_type String COMMENT '作物类型',
@@ -285,7 +281,7 @@ CREATE TABLE default.dwd_greenhouse_plant_health_detail
 )
 ENGINE = MergeTree
 PARTITION BY toDate(ts)
-ORDER BY (greenhouse_id, zone_id, ts);
+ORDER BY (greenhouse_id, ts);
 
 
 
@@ -297,7 +293,6 @@ ORDER BY (greenhouse_id, zone_id, ts);
 CREATE TABLE default.dws_greenhouse_crop_health_snapshot
 (
     greenhouse_id String COMMENT '温室ID',
-    zone_id String COMMENT '区域ID',
     stat_time DateTime COMMENT '统计时间',
 
     crop_type String COMMENT '作物类型',
@@ -318,4 +313,4 @@ CREATE TABLE default.dws_greenhouse_crop_health_snapshot
 )
 ENGINE = MergeTree
 PARTITION BY toDate(stat_time)
-ORDER BY (greenhouse_id, zone_id, stat_time);
+ORDER BY (greenhouse_id, stat_time);

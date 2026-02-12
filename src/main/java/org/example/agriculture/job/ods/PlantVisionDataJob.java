@@ -78,7 +78,6 @@ public class PlantVisionDataJob {
                         // 过滤掉无效数据
                         return data.getPlantDetectId() != null && !data.getPlantDetectId().isEmpty() &&
                                data.getGreenhouseId() != null && !data.getGreenhouseId().isEmpty() &&
-                               data.getZoneId() != null && !data.getZoneId().isEmpty() &&
                                data.getCameraId() != null && !data.getCameraId().isEmpty() &&
                                data.getPlantBasic() != null &&
                                data.getPlantHealth() != null &&
@@ -101,13 +100,13 @@ public class PlantVisionDataJob {
 
         // 创建ClickHouse Sink
         String insertSql = "INSERT INTO ods_greenhouse_plant_vision " +
-                "(plant_detect_id, greenhouse_id, zone_id, camera_id, timestamp, " +
+                "(plant_detect_id, greenhouse_id, camera_id, timestamp, " +
                 "crop_type, growth_stage, plant_height_cm, leaf_count, canopy_coverage, " +
                 "leaf_color_index, chlorophyll_index, wilting_score, disease_risk, pest_risk, " +
                 "fruit_count, avg_fruit_diameter_mm, fruit_color_stage, " +
                 "water_stress, nutrient_stress, light_stress, " +
                 "confidence, model_version) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
 
         // 配置JDBC连接参数
         JdbcConnectionOptions jdbcOptions = new JdbcConnectionOptions.JdbcConnectionOptionsBuilder()
@@ -131,27 +130,26 @@ public class PlantVisionDataJob {
                 (PreparedStatement ps, PlantVisionData data) -> {
                     ps.setString(1, data.getPlantDetectId());
                     ps.setString(2, data.getGreenhouseId());
-                    ps.setString(3, data.getZoneId());
-                    ps.setString(4, data.getCameraId());
-                    ps.setLong(5, data.getTimestamp());
-                    ps.setString(6, data.getPlantBasic().getCropType());
-                    ps.setString(7, data.getPlantBasic().getGrowthStage());
-                    ps.setDouble(8, data.getPlantBasic().getPlantHeightCm());
-                    ps.setInt(9, data.getPlantBasic().getLeafCount());
-                    ps.setDouble(10, data.getPlantBasic().getCanopyCoverage());
-                    ps.setDouble(11, data.getPlantHealth().getLeafColorIndex());
-                    ps.setDouble(12, data.getPlantHealth().getChlorophyllIndex());
-                    ps.setDouble(13, data.getPlantHealth().getWiltingScore());
-                    ps.setString(14, data.getPlantHealth().getDiseaseRisk());
-                    ps.setString(15, data.getPlantHealth().getPestRisk());
-                    ps.setInt(16, data.getFruitInfo().getFruitCount());
-                    ps.setDouble(17, data.getFruitInfo().getAvgFruitDiameterMm());
-                    ps.setString(18, data.getFruitInfo().getFruitColorStage());
-                    ps.setString(19, data.getStressAnalysis().getWaterStress());
-                    ps.setString(20, data.getStressAnalysis().getNutrientStress());
-                    ps.setString(21, data.getStressAnalysis().getLightStress());
-                    ps.setDouble(22, data.getConfidence());
-                    ps.setString(23, data.getModelVersion());
+                    ps.setString(3, data.getCameraId());
+                    ps.setLong(4, data.getTimestamp());
+                    ps.setString(5, data.getPlantBasic().getCropType());
+                    ps.setString(6, data.getPlantBasic().getGrowthStage());
+                    ps.setDouble(7, data.getPlantBasic().getPlantHeightCm());
+                    ps.setInt(8, data.getPlantBasic().getLeafCount());
+                    ps.setDouble(9, data.getPlantBasic().getCanopyCoverage());
+                    ps.setDouble(10, data.getPlantHealth().getLeafColorIndex());
+                    ps.setDouble(11, data.getPlantHealth().getChlorophyllIndex());
+                    ps.setDouble(12, data.getPlantHealth().getWiltingScore());
+                    ps.setString(13, data.getPlantHealth().getDiseaseRisk());
+                    ps.setString(14, data.getPlantHealth().getPestRisk());
+                    ps.setInt(15, data.getFruitInfo().getFruitCount());
+                    ps.setDouble(16, data.getFruitInfo().getAvgFruitDiameterMm());
+                    ps.setString(17, data.getFruitInfo().getFruitColorStage());
+                    ps.setString(18, data.getStressAnalysis().getWaterStress());
+                    ps.setString(19, data.getStressAnalysis().getNutrientStress());
+                    ps.setString(20, data.getStressAnalysis().getLightStress());
+                    ps.setDouble(21, data.getConfidence());
+                    ps.setString(22, data.getModelVersion());
                 },
                 executionOptions,
                 jdbcOptions

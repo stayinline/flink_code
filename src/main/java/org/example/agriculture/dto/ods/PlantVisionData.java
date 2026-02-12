@@ -17,9 +17,6 @@ public class PlantVisionData implements Serializable {
     @JsonProperty("greenhouse_id")
     private String greenhouseId;
     
-    @JsonProperty("zone_id")
-    private String zoneId;
-    
     @JsonProperty("camera_id")
     private String cameraId;
     
