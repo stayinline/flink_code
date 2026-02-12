@@ -1,4 +1,4 @@
-package org.example.agriculture.dto;
+package org.example.agriculture.dto.dwd;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -10,12 +10,9 @@ import java.io.Serializable;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class SoilSensorData implements Serializable {
+public class GreenhouseSensorData implements Serializable {
     @JsonProperty("sensor_id")
     private String sensorId;
-    
-    @JsonProperty("sensor_type")
-    private String sensorType;
     
     @JsonProperty("greenhouse_id")
     private String greenhouseId;
@@ -41,26 +38,16 @@ public class SoilSensorData implements Serializable {
     @AllArgsConstructor
     @NoArgsConstructor
     public static class Metrics implements Serializable {
+        private double temperature;
+        private double humidity;
+        private int co2;
+        private int light;
+        
         @JsonProperty("soil_temperature")
         private double soilTemperature;
         
         @JsonProperty("soil_moisture")
         private double soilMoisture;
-        
-        @JsonProperty("soil_ec")
-        private double soilEc;
-        
-        @JsonProperty("soil_ph")
-        private double soilPh;
-        
-        @JsonProperty("soil_n")
-        private double soilN;
-        
-        @JsonProperty("soil_p")
-        private double soilP;
-        
-        @JsonProperty("soil_k")
-        private double soilK;
     }
     
     @Data

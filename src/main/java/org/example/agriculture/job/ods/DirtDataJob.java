@@ -12,7 +12,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
-import org.example.agriculture.dto.SoilSensorData;
+import org.example.agriculture.dto.ods.SoilSensorData;
 
 import java.sql.PreparedStatement;
 import java.util.Properties;
