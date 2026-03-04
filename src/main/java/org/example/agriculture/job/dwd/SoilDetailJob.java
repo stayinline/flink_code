@@ -11,6 +11,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.agriculture.dto.dwd.SoilSensorData;
 
@@ -145,6 +146,40 @@ public class SoilDetailJob {
                 jdbcOptions
         );
         dwdStream.addSink(sink).name("ClickHouse DWD Soil Detail Sink");
+
+        // 添加Kafka旁路Sink，topic为dwd_前缀
+        DataStream<String> kafkaOutputStream = dwdStream
+                .map(new MapFunction<DwdSoilDetail, String>() {
+                    private final ObjectMapper objectMapper = new ObjectMapper();
+
+                    @Override
+                    public String map(DwdSoilDetail data) throws Exception {
+                        try {
+                            // 将DwdSoilDetail对象转换为JSON字符串
+                            return objectMapper.writeValueAsString(data);
+                        } catch (Exception e) {
+                            System.err.println("JSON序列化错误: " + e.getMessage());
+                            return null;
+                        }
+                    }
+                })
+                .filter(new FilterFunction<String>() {
+                    @Override
+                    public boolean filter(String value) throws Exception {
+                        // 过滤掉null值
+                        return value != null;
+                    }
+                });
+
+        // 创建Kafka Producer
+        FlinkKafkaProducer<String> kafkaProducer = new FlinkKafkaProducer<String>(
+                "dwd_soil_detail",
+                new SimpleStringSchema(),
+                kafkaProps
+        );
+
+        // 添加Kafka Sink
+        kafkaOutputStream.addSink(kafkaProducer).name("Kafka DWD Soil Detail Sink");
 
         // 打印数据流用于调试
         dwdStream.map(data -> "处理土壤详情数据: " + data.toString()).print();

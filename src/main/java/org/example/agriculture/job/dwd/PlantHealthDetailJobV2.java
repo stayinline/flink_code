@@ -16,6 +16,7 @@ import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.co.KeyedCoProcessFunction;
 import org.apache.flink.streaming.api.functions.sink.SinkFunction;
+import org.apache.flink.streaming.connectors.kafka.FlinkKafkaProducer;
 import org.apache.flink.util.Collector;
 import org.apache.flink.shaded.jackson2.com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.agriculture.dto.ods.GreenhouseSensorData;
@@ -208,6 +209,40 @@ public class PlantHealthDetailJobV2 {
         dwdStream
                 .rebalance()
                 .addSink(sink).name("ClickHouse DWD Plant Health Detail Sink");
+
+        // 添加Kafka旁路Sink，topic为dwd_前缀
+        DataStream<String> kafkaOutputStream = dwdStream
+                .map(new MapFunction<DwdPlantHealthDetail, String>() {
+                    private final ObjectMapper objectMapper = new ObjectMapper();
+
+                    @Override
+                    public String map(DwdPlantHealthDetail data) throws Exception {
+                        try {
+                            // 将DwdPlantHealthDetail对象转换为JSON字符串
+                            return objectMapper.writeValueAsString(data);
+                        } catch (Exception e) {
+                            System.err.println("JSON序列化错误: " + e.getMessage());
+                            return null;
+                        }
+                    }
+                })
+                .filter(new FilterFunction<String>() {
+                    @Override
+                    public boolean filter(String value) throws Exception {
+                        // 过滤掉null值
+                        return value != null;
+                    }
+                });
+
+        // 创建Kafka Producer
+        FlinkKafkaProducer<String> kafkaProducer = new FlinkKafkaProducer<String>(
+                "dwd_plant_health_detail",
+                new SimpleStringSchema(),
+                kafkaProps
+        );
+
+        // 添加Kafka Sink
+        kafkaOutputStream.addSink(kafkaProducer).name("Kafka DWD Plant Health Detail Sink");
 
         // 打印数据流用于调试
         dwdStream.map(data -> "处理植物健康详情数据: " + data.toString()).print();
