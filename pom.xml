@@ -16,7 +16,8 @@
         <!--        <flink.version>1.20.3</flink.version>-->
 
         <scala.binary.version>2.12</scala.binary.version>
-        <clickhouse.jdbc.version>0.9.0</clickhouse.jdbc.version>
+<!--        <clickhouse.jdbc.version>0.9.0</clickhouse.jdbc.version>-->
+        <clickhouse.jdbc.version>0.7.2</clickhouse.jdbc.version>
     </properties>
 
     <dependencies>
@@ -99,7 +100,7 @@
         <dependency>
             <groupId>com.clickhouse</groupId>
             <artifactId>clickhouse-jdbc</artifactId>
-            <version>0.7.2</version>
+            <version>${clickhouse.jdbc.version}</version>
             <classifier>all</classifier>
             <scope>compile</scope>
 

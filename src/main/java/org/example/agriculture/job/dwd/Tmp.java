@@ -3,9 +3,12 @@ package org.example.agriculture.job.dwd;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.table.api.EnvironmentSettings;
 import org.apache.flink.table.api.bridge.java.StreamTableEnvironment;
+import org.apache.flink.connector.jdbc.JdbcConnectionOptions;
+import org.apache.flink.connector.jdbc.JdbcExecutionOptions;
+import org.apache.flink.connector.jdbc.JdbcSink;
+import com.clickhouse.jdbc.ClickHouseDriver;
 
-
-public class PlantHealthDetailJobV2SQL {
+public class Tmp {
 
     public static void main(String[] args) throws Exception {
         // -------------------------------
@@ -100,7 +103,10 @@ public class PlantHealthDetailJobV2SQL {
                 "'scan.startup.mode' = 'latest-offset'" +
                 ")");
 
-
+        // ClickHouse配置
+        String clickhouseUrl = "jdbc:clickhouse://192.168.1.124:8123/default";
+        String username = "default";
+        String password = "65e84be3";
 
         // -------------------------------
         // 4. Kafka sink
@@ -156,11 +162,11 @@ public class PlantHealthDetailJobV2SQL {
                         "humidity DOUBLE" +
                         ") WITH (" +
                         "'connector' = 'jdbc'," +
-                        "'url' = 'jdbc:clickhouse://192.168.1.124:8123'," +
-                        "'table-name' = 'default.dwd_greenhouse_plant_health_detail'," +
+                        "'url' = 'jdbc:clickhouse://192.168.1.124:8123/default'," +
+                        "'table-name' = 'dwd_greenhouse_plant_health_detail'," +
+                        "'driver' = 'com.clickhouse.jdbc.ClickHouseDriver'," +
                         "'username' = 'default'," +
-                        "'password' = '65e84be3'," +
-                        "'driver' = 'ru.yandex.clickhouse.ClickHouseDriver'" +
+                        "'password' = '65e84be3'" +
                         ")"
         );
 
@@ -197,9 +203,9 @@ public class PlantHealthDetailJobV2SQL {
 // 6. 写入 Kafka & ClickHouse 双 Sink
 // -------------------------------
 // 写 Kafka
-        tEnv.executeSql("INSERT INTO kafka_sink " + sqlIntervalJoin);
+//        tEnv.executeSql("INSERT INTO kafka_sink " + sqlIntervalJoin);
 
 // 写 ClickHouse
-//        tEnv.executeSql("INSERT INTO clickhouse_sink " + sqlIntervalJoin);
+        tEnv.executeSql("INSERT INTO clickhouse_sink " + sqlIntervalJoin);
     }
 }
