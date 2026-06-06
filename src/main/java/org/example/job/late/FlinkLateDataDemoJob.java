@@ -43,8 +43,8 @@ public class FlinkLateDataDemoJob {
 
     /** 第一道防线：WM 乱序容忍 */
     public static final Duration OUT_OF_ORDERNESS = Duration.ofSeconds(5);
-    /** 第二道防线：窗口触发后再保留状态时长 */
-    public static final Duration ALLOWED_LATENESS = Duration.ofSeconds(3);
+    /** 第二道防线：窗口触发后再保留状态时长（Flink 1.14 窗口 API 使用 Time，非 java.time.Duration） */
+    public static final Time ALLOWED_LATENESS = Time.seconds(3);
     public static final Time WINDOW_SIZE = Time.seconds(10);
 
     /** 第三道防线：彻底迟到的侧输出标签 */
@@ -165,7 +165,7 @@ public class FlinkLateDataDemoJob {
         System.out.println("Kafka: " + KAFKA_BROKER + " | Topic: " + TOPIC);
         System.out.println("模式: " + mode + (MODE_BILLING.equals(mode) ? "（计费，侧输出+补偿）" : "（大屏PV，严重迟到丢弃）"));
         System.out.println("① WM 乱序容忍: forBoundedOutOfOrderness(" + OUT_OF_ORDERNESS.getSeconds() + "s)");
-        System.out.println("② 窗口 lateness: allowedLateness(" + ALLOWED_LATENESS.getSeconds() + "s)");
+        System.out.println("② 窗口 lateness: allowedLateness(" + ALLOWED_LATENESS.toMilliseconds() / 1000 + "s)");
         System.out.println("③ 侧输出: " + (sideOutputEnabled ? "sideOutputLateData ✅" : "未启用 ⚠️"));
         System.out.println("窗口: Tumbling " + WINDOW_SIZE.toMilliseconds() / 1000 + "s | 并行度: 1");
         System.out.println("文档: resources/watermark/FlinkLateDataDemoGuide.md");

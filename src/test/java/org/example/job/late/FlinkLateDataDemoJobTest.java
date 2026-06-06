@@ -32,7 +32,7 @@ public class FlinkLateDataDemoJobTest {
 
     private static final long WINDOW_START = BASE_TIME_MS;
     private static final long WINDOW_END = BASE_TIME_MS + 10_000;
-    private static final long ALLOWED_MS = FlinkLateDataDemoJob.ALLOWED_LATENESS.toMillis();
+    private static final long ALLOWED_MS = FlinkLateDataDemoJob.ALLOWED_LATENESS.toMilliseconds();
 
     @Test
     void sendLateDataDemoEvents() throws Exception {
@@ -70,7 +70,7 @@ public class FlinkLateDataDemoJobTest {
         long windowStart = WINDOW_START;
         long windowEnd = WINDOW_END;
         assertTrue(windowStart < windowEnd);
-        assertEquals(WINDOW_END + ALLOWED_MS, windowEnd + FlinkLateDataDemoJob.ALLOWED_LATENESS.toMillis(),
+        assertEquals(WINDOW_END + ALLOWED_MS, windowEnd + FlinkLateDataDemoJob.ALLOWED_LATENESS.toMilliseconds(),
                 "状态清退边界 = window.end + allowedLateness");
         System.out.printf("窗口 [0,10s) 状态保留至 WM≥+%ds，期间迟到事件触发 LATE-UPDATE（非新窗口）%n",
                 (WINDOW_END - WINDOW_START) / 1000 + ALLOWED_MS / 1000);
@@ -93,7 +93,7 @@ public class FlinkLateDataDemoJobTest {
         System.out.println("迟到数据三道防线 — 测试数据发送");
         System.out.println("Topic: " + FlinkLateDataDemoJob.TOPIC);
         System.out.println("WM 乱序: " + FlinkLateDataDemoJob.OUT_OF_ORDERNESS.getSeconds() + "s");
-        System.out.println("allowedLateness: " + FlinkLateDataDemoJob.ALLOWED_LATENESS.getSeconds() + "s");
+        System.out.println("allowedLateness: " + FlinkLateDataDemoJob.ALLOWED_LATENESS.toMilliseconds() / 1000 + "s");
         System.out.println("共 " + plan.size() + " 步");
         System.out.println("========================================");
         printPlan(plan);
