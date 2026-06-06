@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- 默认 INFO，只保留业务/窗口 print 输出 -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+    </root>
+
+    <!-- Kafka 客户端（NetworkClient / Fetcher 等 DEBUG 噪音） -->
+    <logger name="org.apache.kafka" level="WARN"/>
+
+    <!-- Flink 运行时（heartbeat、window merge 等 DEBUG） -->
+    <logger name="org.apache.flink" level="INFO"/>
+    <logger name="org.apache.flink.runtime" level="WARN"/>
+    <logger name="org.apache.flink.streaming.runtime" level="WARN"/>
+    <logger name="org.apache.flink.streaming.api.functions.sink" level="WARN"/>
+
+    <!-- Akka / Pekko actor 心跳 -->
+    <logger name="akka" level="WARN"/>
+    <logger name="org.apache.pekko" level="WARN"/>
+
+    <!-- ZooKeeper / Curator（如后续用到） -->
+    <logger name="org.apache.zookeeper" level="WARN"/>
+    <logger name="org.apache.curator" level="WARN"/>
+
+</configuration>
