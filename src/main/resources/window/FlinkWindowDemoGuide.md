@@ -91,6 +91,8 @@ u003 事件（按 event time 排序）:
 | **用户一次访问会话时长** | Session gap=30min | 会话边界由行为决定；需容忍乱序；状态随活跃 session 数增长 |
 | **按自然天对账** | Tumbling 1day + **时区 offset** | 必须对齐业务时区日界；完整性要求 100%；Tumbling 即可 |
 
+> 在线教育行业三个最典型落地案例（含生产运维心得）见 **Step 7**。
+
 ### 自然天对账代码示例（Asia/Shanghai UTC+8）
 
 ```java
@@ -242,6 +244,243 @@ MetricGroup - The operator name Window(...AmountSumAggregator, WindowSumResultFo
 ```
 
 算子链名称过长被截断，**不影响计算结果**。若需消除，可在窗口算子后加 `.name("SlidingSum")` 缩短名称。
+
+---
+
+## Step 7 在线教育典型业务案例（三种窗口各一）
+
+> 以下三个场景是在线教育平台里**出现频率最高、最有代表性**的窗口应用，分别对应 Tumbling / Sliding / Session。  
+> 选型逻辑统一用 **延迟容忍度 / 数据完整性 / 计算成本** 三要素衡量。
+
+---
+
+### 案例一：Tumbling — 学员「每日有效学习时长」日报 & 家校对账
+
+#### 业务背景
+
+K12 / 职业培训平台需按**自然天**统计每位学员的有效学习时长（观看录播、完成练习、直播出勤等），生成：
+- 学员端「今日已学 45 分钟」
+- 家长端日报推送
+- 财务/运营按**自然日**与第三方渠道（学校、代理商）对账结算
+
+#### 数据模型
+
+```json
+{"studentId":"S10001","courseId":"C200","eventType":"video_heartbeat",
+ "durationSec":30,"ts":1717654321000}
+```
+
+- `keyBy(studentId)` 或 `keyBy(studentId, courseId)`
+- 聚合：`sum(durationSec)` 或 `sum(validSeconds)`（需先过滤挂机、倍速作弊）
+
+#### 窗口配置
+
+```java
+// 北京时间 00:00 切日，与财务对账口径一致
+WatermarkStrategy.<StudyEvent>forBoundedOutOfOrderness(Duration.ofMinutes(2))
+    .withTimestampAssigner((e, ts) -> e.getTs());
+
+stream.keyBy(StudyEvent::getStudentId)
+    .window(TumblingEventTimeWindows.of(Time.days(1), Time.hours(-8))) // UTC+8
+    .aggregate(new StudyDurationAggregator());
+```
+
+#### 为什么选 Tumbling（三要素）
+
+| 维度 | 分析 |
+|------|------|
+| **延迟容忍度** | 日报 T+0 或 T+1 即可，可接受 **日级延迟**（通常等 watermark 越过当日 24:00 后再出数） |
+| **数据完整性** | 必须 **按自然天完整切桶、互不重叠**；不能「近 24h 滑动加总」——否则同一学员一天会被算进两个自然日 |
+| **计算成本** | 每心跳事件只写 **1 个日桶**，状态量 = 活跃学员数 × 1，最低 |
+
+**不选 Sliding 的原因**：Sliding 24h/1h 会导致同一学习行为同时落入多个重叠窗口，与「按天对账」语义冲突。  
+**不选 Session 的原因**：Session 边界由行为间隔决定，无法对齐「北京时间 0 点」这一财务口径。
+
+#### 生产架构要点
+
+```
+Kafka(学习行为) → Flink Tumbling 1day → ClickHouse/Doris 日表
+                                      → 定时任务 00:15 推送给家长（等 watermark 稳定）
+```
+
+- 心跳事件量大（每 30s 一条），**必须用 aggregate** 累加秒数，禁止 process 缓存全天心跳
+- 日切边界 Job 重启时依赖 **Checkpoint + 状态恢复**，不可只用 `setStartFromLatest()`
+- 与 Demo 类比：类似 u001 的 Tumbling，但窗口从 5s 放大到 1day，且需 **时区 offset**
+
+#### 运维与告警
+
+| 监控项 | 阈值建议 | 说明 |
+|--------|----------|------|
+| 当前 watermark 滞后 wall-clock | > 10min 告警 | 上游 Kafka 延迟或消费积压 |
+| 日切后 1h 内完成率 | < 99% 学员出数告警 | 可能有大量迟到数据 |
+| 单 key 状态大小 | 异常膨胀 | 检查是否误用 process 存明细 |
+| Checkpoint 时长 | > 3min 告警 | 日窗口状态 + 大并行度时常见 |
+
+#### 踩坑与心得
+
+1. **时区是第一大坑**：epoch 对齐默认 UTC，`offset` 必须和业务、财务、BI 口径一致；大促前后要专门回归「23:59 学习算哪天」。
+2. **迟到数据策略**：日报场景可设 `allowedLateness = 2~4h`，迟到心跳修正当日时长；超过则进 **侧输出流** 写补录表，人工/离线修正。
+3. **心跳 vs 有效时长**：Tumbling 只负责「加总」，有效判定（倍速>2x 不计、后台播放不计）应在前置 Filter 完成，否则窗口层无法补救。
+4. **日切尖峰**：00:00~00:05 大量窗口同时触发，Sink 易被打满；生产常用 **批量 JDBC + 异步 Sink** 或先写 Kafka 再 OLAP 消费。
+5. **心得**：教育行业「按天」诉求极多（学习报告、打卡、续费提醒），**Tumbling + 时区** 是标配；先把口径写进 PRD，再写代码。
+
+---
+
+### 案例二：Sliding — 直播课「近 5 分钟在线人数 & 互动热度」实时大屏
+
+#### 业务背景
+
+双师直播 / 大班课中，主讲和班主任需要实时看到：
+- **当前时刻往前推 5 分钟**的在线人数曲线（不是「本分钟」的瞬时值）
+- 近 5 分钟弹幕数、举手数、答题参与率排名（互动热度榜）
+
+大屏要求：**任意时刻**问「过去 5 分钟有多少人」，都要能答，且每 **30s~1min** 刷新一次。
+
+#### 数据模型
+
+```json
+{"liveRoomId":"L888","studentId":"S10001","eventType":"enter|heartbeat|leave",
+ "ts":1717654321000}
+```
+
+- `keyBy(liveRoomId)` 统计房间级在线；`keyBy(liveRoomId, studentId)` 去重后 count 近似 UV
+- 聚合：`countDistinct(studentId)` 或 HyperLogLog 近似去重
+
+#### 窗口配置
+
+```java
+// 近 5 分钟在线：size=5min, slide=30s → 每 30s 刷新一次「过去 5min」视图
+stream.keyBy(LiveEvent::getLiveRoomId)
+    .window(SlidingEventTimeWindows.of(Time.minutes(5), Time.seconds(30)))
+    .aggregate(new OnlineCountAggregator());
+```
+
+#### 为什么选 Sliding（三要素）
+
+| 维度 | 分析 |
+|------|------|
+| **延迟容忍度** | 大屏 **30s~1min 刷新**可接受，不需要秒级 |
+| **数据完整性** | 必须任意时刻都有「完整 5 分钟窗口」视图；Tumbling 1min 只能看「上一完整分钟」，无法表达「14:03 时过去 5 分钟」 |
+| **计算成本** | **偏高**——size/slide = 10，每条心跳最多进 10 个窗口；晚高峰 10 万人在线时状态压力显著 |
+
+**不选 Tumbling 的原因**：1min Tumbling 只能得到「14:00~14:01 进了多少人」，无法滚动回答「此刻往前 5 分钟」。  
+**不选 Session 的原因**：在线人数不是「一次会话」语义，而是固定回看长度。
+
+#### 生产架构要点
+
+```
+Kafka(进出房/心跳) → Flink Sliding 5min/30s → Redis(大屏轮询) / WebSocket 推送
+                                              ↘ 超阈值 → 钉钉「人数异常下跌」
+```
+
+- 与 Demo 类比：同 u002，`size=10/slide=5` 时 1 条进 2 窗；此处 `size=5min/slide=30s` 时 1 条最多进 **10 窗**
+- **生产常见降本**：Flink 只做 **Tumbling 30s 预聚合**（每 30s 一条在线快照），大屏查询时 **Redis/ClickHouse sum 最近 10 个桶** ≈ 近 5 分钟——即文档「加分点」方案
+
+#### 运维与告警
+
+| 监控项 | 阈值建议 | 说明 |
+|--------|----------|------|
+| 窗口状态总量 | 较基线 +50% 告警 | slide 调小或直播场次增多时膨胀 |
+| Checkpoint 大小 / 时长 | 持续上升 | Sliding 是状态膨胀重灾区 |
+| 单直播间 QPS | 超设计容量 | 热门直播间 key 热点，考虑 keyBy 后 rebalance 或本地聚合 |
+| Watermark 滞后 | > 1min | 大屏数据「假死」 |
+
+#### 踩坑与心得
+
+1. **Sliding 资源陷阱**：晚 8 点开课，10 万心跳/秒 × 10 窗口副本 = 百万级状态更新/秒，**必做容量评估**；能不用 Sliding 就不用。
+2. **去重语义**：「在线人数」要在窗口内对 studentId 去重；用 `AggregateFunction` 维护 HyperLogLog 或 RoaringBitmap，不要 `List` 存全量 id。
+3. **leave 事件迟到**：学生切后台 leave 事件可能延迟 30s，在线人数会 **虚高**；可结合 heartbeat 超时（45s 无心跳视为离开）在窗口外做状态清理。
+4. **大屏刷新 vs slide**：slide 不必小于刷新间隔；slide=30s、前端 60s 轮询足够，再小只会烧资源。
+5. **心得**：Sliding 适合「演示效果好、量不大」的直播监控；**量一大就改 Tumbling 预聚合 + 查询层滑动**，这是教育直播团队的常见演进路径。
+
+---
+
+### 案例三：Session — 单次「学习会话」时长 & 断点续学归因
+
+#### 业务背景
+
+自适应学习 / AI 课需要知道学员**一次连续学习**持续了多久、做了几道题、在哪个知识点 dropout：
+- 产品：「您本次学习 23 分钟，完成 2 个章节」
+- 算法：会话时长 < 3min 标记为「浅尝辄止」，触发挽留 Push
+- 运营：分析「打开 App → 离开」的完整路径，优化课程内容长度
+
+「一次学习」的定义：**相邻行为间隔 < 30min** 算同一会话（中间喝水、查字典不算新会话）；超过 30min 视为新会话。
+
+#### 数据模型
+
+```json
+{"studentId":"S10001","eventType":"page_view|answer|video_play",
+ "knowledgePointId":"KP99","ts":1717654321000}
+```
+
+- `keyBy(studentId)` 或 `keyBy(studentId, deviceId)`
+- 聚合：`count` 事件数、`sum(studySec)`、`max(knowledgePointId)` 等会话摘要
+
+#### 窗口配置
+
+```java
+// gap=30min：教育场景常见「一次学习会话」阈值
+stream.keyBy(StudyEvent::getStudentId)
+    .window(EventTimeSessionWindows.withGap(Time.minutes(30)))
+    .aggregate(new SessionSummaryAggregator(), new SessionSummaryFormatter());
+```
+
+#### 为什么选 Session（三要素）
+
+| 维度 | 分析 |
+|------|------|
+| **延迟容忍度** | 会话结束后再出数即可（gap 30min 无新事件 + watermark 推进），**分钟~小时级**可接受 |
+| **数据完整性** | 必须按**用户行为节奏**切分，不能用固定 30min Tumbling（14:00 和 14:29 的学习可能被硬切成两段） |
+| **计算成本** | **中等偏高**——活跃 session 数 × merge 开销；长会话 + 乱序时 merge 频繁 |
+
+**不选 Tumbling 的原因**：固定 30min 桶无法反映「用户 14:05 开始、14:50 结束」这一完整 45min 会话。  
+**不选 Sliding 的原因**：会话长度不固定，Sliding 无法表达「从打开到离开」的语义。
+
+#### 生产架构要点
+
+```
+Kafka(学习行为) → Flink Session gap=30min → Kafka(session_summary) → 推荐/Push/BI
+                                         ↘ 侧输出：merge 次数过多 → 数据质量监控
+```
+
+- 与 Demo 类比：同 u003，gap 从 5s 放大到 30min；迟到事件仍可能 **merge** 两个本已闭合的 session
+- 会话结果写 **Upsert 表**（sessionId, start, end, duration, kpCount），供下游 AI 打标
+
+#### 运维与告警
+
+| 监控项 | 阈值建议 | 说明 |
+|--------|----------|------|
+| Session merge 频率 | 较基线 +100% | 乱序恶化或 gap 过小 |
+| 单用户 session 时长 | > 4h 告警 | 挂机刷时长、gap 过大未切分 |
+| 状态条目数（活跃 session） | 持续增长不下降 | 检查 watermark 是否正常推进 |
+| 迟到数据丢弃量 | > 0.1% | Side Output 应接住可补救数据 |
+
+#### 踩坑与心得
+
+1. **gap 怎么定**：太短（5min）→ 上厕所被切成两段，时长碎片化；太长（2h）→ 挂机算学习。教育产品通常 **20~30min**，需 A/B 与产品一起定。
+2. **merge 是双刃剑**：Demo 中 u003 迟到 +6s merge 两段；生产里若 gap=30min 仍 merge，说明 **乱序严重或 gap 偏小**，会导致会话时长 **被拉长**、Push 时机推迟。要监控 `MergingWindowSet` 日志频率。
+3. **Session 不能简单用 Tumbling 替代**：「每日 30min 学习提醒」是 Tumbling 日桶；「本次学了多久」是 Session，**两个指标并存、不可混用**。
+4. **sessionId 生成**：窗口触发后下游需要稳定 sessionId，常用 `hash(studentId + windowStart)`，merge 后 start 会变，**必须在 merge 完成后**再发下游或做 Upsert。
+5. **allowedLateness**：建议 1~2h，迟到心跳可修正会话结束时间和时长；与 Tumbling 日报共用同一 Kafka 源时，**Session 分支的 watermark 策略要单独评估**。
+6. **心得**：Session 最贴「学习行为心理学」，但运维复杂度最高；上线前用 **回放一周生产日志** 估算 merge 率、P99 会话时长，再定 gap。
+
+---
+
+### 三案例对照总表
+
+| 案例 | 窗口 | 典型指标 | 延迟 | 状态成本 | 最大运维风险 |
+|------|------|----------|------|----------|--------------|
+| 每日学习时长 / 对账 | **Tumbling 1day+时区** | sum(有效秒数) | 日级 | 低 | 时区与日切口径不一致 |
+| 直播近 5min 在线 | **Sliding 5min/30s** | countDistinct(人) | 30s~1min | **高** | 晚高峰状态膨胀、Checkpoint 慢 |
+| 单次学习会话 | **Session gap=30min** | 会话时长、KP 数 | gap 后触发 | 中~高 | merge 异常、sessionId 不一致 |
+
+### 与本地 Demo 的映射
+
+| Demo | 教育案例 |
+|------|----------|
+| u001 Tumbling 5s，2 个桶 | → 放大为 **Tumbling 1day**，学员每日时长 1 条 |
+| u002 Sliding 1 条 → 2 窗 | → 放大为 **Sliding 5min**，每条心跳进多窗 |
+| u003 Session merge sum=105 | → 放大为 **Session 30min gap**，迟到心跳 merge 会话 |
 
 ---
 
