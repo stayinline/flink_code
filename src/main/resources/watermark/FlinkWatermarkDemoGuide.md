@@ -146,6 +146,7 @@ org.example.job.watermark.FlinkWatermarkDemoJob 10
 周期性 WM 在无新事件时也能「尝试」推进（基于已有 maxEventTime），但 **无法越过空闲分区/空闲源**——仍需 idleness。
 
 > 在线教育行业三个 Watermark 典型落地案例（含生产运维心得）见 **Step 7**。  
+> 迟到数据三道防线（allowedLateness + 侧输出）见 **《FlinkLateDataDemoGuide》**。  
 > 一次失败联调的完整排障过程见 **Step 8**。
 
 ### ③ WM 与 allowedLateness（预告）
@@ -154,6 +155,8 @@ org.example.job.watermark.FlinkWatermarkDemoJob 10
 窗口首次触发: WM ≥ window.end
 allowedLateness > 0: WM ≥ window.end + lateness 前，迟到数据仍可更新窗口结果
 本 Demo 未开 lateness → 迟到且 WM 已越过的事件被丢弃
+
+完整三道防线实现见：FlinkLateDataDemoJob + FlinkLateDataDemoGuide.md
 ```
 
 ---
