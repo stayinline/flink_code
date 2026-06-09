@@ -7,7 +7,7 @@ import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.PredefinedOptions;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.flink.runtime.state.storage.FileSystemCheckpointStorage;
-import org.apache.flink.streaming.api.environment.CheckpointConfig;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 
 /**
@@ -67,7 +67,7 @@ public final class StateBackendConfigurator {
         // 调优项 2：Managed Memory 见 createFlinkConfiguration()；集群部署请在 flink-conf.yaml 配置 taskmanager.memory.managed.size
 
         // 调优项 3：单并发 Checkpoint，大状态避免重叠 checkpoint 打满磁盘 IO
-        env.getCheckpointConfig().setCheckpointingMode(CheckpointConfig.CheckpointingMode.EXACTLY_ONCE);
+        env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
         env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
     }
 
