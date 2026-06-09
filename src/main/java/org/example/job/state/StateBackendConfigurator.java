@@ -1,6 +1,8 @@
 package org.example.job.state;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.MemorySize;
+import org.apache.flink.configuration.TaskManagerOptions;
 import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.contrib.streaming.state.PredefinedOptions;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
@@ -24,6 +26,17 @@ public final class StateBackendConfigurator {
             return args[0].trim().toLowerCase();
         }
         return System.getProperty("state.backend", BACKEND_HASHMAP).trim().toLowerCase();
+    }
+
+    /**
+     * TaskManager 级调优项需在创建 {@link StreamExecutionEnvironment} 前写入 Configuration。
+     */
+    public static Configuration createFlinkConfiguration(String backend) {
+        Configuration configuration = new Configuration();
+        if (BACKEND_ROCKSDB.equals(backend)) {
+            configuration.set(TaskManagerOptions.MANAGED_MEMORY_SIZE, MemorySize.parse("256m"));
+        }
+        return configuration;
     }
 
     public static void configure(StreamExecutionEnvironment env, String backend) {
@@ -51,9 +64,7 @@ public final class StateBackendConfigurator {
         env.getCheckpointConfig().setCheckpointStorage(
                 new FileSystemCheckpointStorage("file:///tmp/flink-state-demo-checkpoints/rocksdb"));
 
-        // 调优项 2：Managed Memory，RocksDB 与 Flink 共享 TM 堆外内存池
-        env.getConfig().set(org.apache.flink.configuration.TaskManagerOptions.MANAGED_MEMORY_SIZE,
-                MemorySize.parse("256m"));
+        // 调优项 2：Managed Memory 见 createFlinkConfiguration()；集群部署请在 flink-conf.yaml 配置 taskmanager.memory.managed.size
 
         // 调优项 3：单并发 Checkpoint，大状态避免重叠 checkpoint 打满磁盘 IO
         env.getCheckpointConfig().setCheckpointingMode(CheckpointConfig.CheckpointingMode.EXACTLY_ONCE);

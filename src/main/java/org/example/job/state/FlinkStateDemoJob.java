@@ -1,5 +1,6 @@
 package org.example.job.state;
 
+import org.apache.flink.configuration.Configuration;
 import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FilterFunction;
 import org.apache.flink.api.common.functions.MapFunction;
@@ -41,9 +42,10 @@ public class FlinkStateDemoJob {
 
     public static void main(String[] args) throws Exception {
         String backend = StateBackendConfigurator.resolveBackend(args);
+        Configuration flinkConfig = StateBackendConfigurator.createFlinkConfiguration(backend);
 
-        final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-        env.setParallelism(1);
+        // Flink 1.14：TaskManager 内存等集群参数须在创建 Environment 时传入 Configuration
+        final StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironment(1, flinkConfig);
         env.enableCheckpointing(5000);
         env.getConfig().setAutoWatermarkInterval(200);
 
