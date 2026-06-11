@@ -1,19 +1,24 @@
 package org.example.job.window;
 
+import lombok.Data;
+
 import java.io.Serializable;
 
-/** aggregate 增量累加器，避免 ProcessWindowFunction 全量缓存元素 */
+/**
+ * aggregate 增量累加器，避免 ProcessWindowFunction 全量缓存元素
+ */
+@Data
 public class AmountSumAccumulator implements Serializable {
 
-    double sum;
-    long count;
+    public double sum;
+    public long count;
 
-    void add(double amount) {
+    public void add(double amount) {
         sum += amount;
         count++;
     }
 
-    void merge(AmountSumAccumulator other) {
+    public void merge(AmountSumAccumulator other) {
         sum += other.sum;
         count += other.count;
     }

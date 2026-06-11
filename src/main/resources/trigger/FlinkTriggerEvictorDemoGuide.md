@@ -6,6 +6,30 @@
 
 ---
 
+## 读前扫盲：Trigger 改“什么时候算”，Evictor 改“拿哪些数据算”
+
+前面的窗口文档默认假设：窗口收集数据，等 Watermark 到达窗口结束时间，再输出一次最终结果。但很多看板不愿意等 5 分钟才看到第一条结果，希望窗口还没结束时先出中间值。Trigger 就是用来控制“窗口什么时候触发计算”的。
+
+先分清三个角色：
+
+| 角色 | 负责什么 | 本 Demo 中的体现 |
+|------|----------|-----------------|
+| Window Assigner | 决定事件属于哪个窗口 | `TumblingEventTimeWindows.of(5min)` |
+| Trigger | 决定窗口什么时候 FIRE | 默认等窗口结束；自定义版本每 100 条提前 FIRE |
+| Evictor | 决定 FIRE 前从窗口元素里剔除哪些 | `CountEvictor.of(30)` 只保留最近 30 条 |
+
+Trigger 的入门直觉：
+
+- `FIRE` 只是“算一次并输出”，不一定关闭窗口。
+- 如果没有 `PURGE`，窗口里的元素还会保留，后面可以继续 FIRE。
+- 因为同一个窗口可能多次输出，下游必须按 `(key, windowStart, windowEnd)` 做覆盖或幂等写入。
+
+Evictor 要更谨慎。它需要在 FIRE 前检查窗口里的元素，因此 Flink 必须保留窗口元素本身；这会削弱 `AggregateFunction` 这类增量聚合的省内存优势。本 Demo 把 Evictor 放在对照支路里，是为了看清它的语义和成本，不是推荐默认使用。
+
+读本文时可以先抓住一个对比：同样是 5 分钟 Tumbling 窗口，默认 Trigger 在窗口结束前没有输出；自定义 `CountOrTimeTrigger(100)` 会在第 100 条、第 200 条先输出中间结果，最后 Watermark 越过窗口结束时间再输出最终结果。
+
+---
+
 ## Step 1 原理：Trigger 决定「何时 FIRE」，Evictor 决定「算哪些元素」
 
 ### ① 四种 TriggerResult

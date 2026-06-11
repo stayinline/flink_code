@@ -6,6 +6,31 @@
 
 ---
 
+## 读前扫盲：State 是 Flink 记住“过去发生过什么”的地方
+
+普通的 `map` / `filter` 只看当前这一条数据；但很多流式业务必须记住历史。例如“这个 eventId 是否已经处理过”“某个学生每门课累计看了多久”“答案先到了，题目还没到，先缓存在哪里”。这些跨事件的信息就放在 Flink State 里。
+
+先把 State 分成两层理解：
+
+| 概念 | 入门解释 | 本 Demo 例子 |
+|------|----------|--------------|
+| Keyed State | `keyBy(...)` 之后，每个 key 都有自己独立的一份状态 | 按 `eventId` 去重，按 `studentId` 统计课程进度 |
+| Operator State | 绑定在算子 subtask 上，不属于某个业务 key | `FlinkKafkaConsumer` 管理 Kafka offset |
+| State Backend | 决定状态实际放在内存、RocksDB 以及 checkpoint 快照中的实现方式 | `hashmap` / `rocksdb` 启动参数 |
+
+最常见的 Keyed State 可以按“你要记住什么形状的数据”来选：
+
+| 你要记住的东西 | 优先考虑 |
+|----------------|----------|
+| 一个标记、一个计数、一个当前值 | `ValueState` |
+| 一批待处理元素 | `ListState` |
+| 一个 key 下还有很多子 key | `MapState` |
+| 只需要持续合并出一个聚合值 | `ReducingState` / `AggregatingState` |
+
+State 和普通 Java 集合最大的区别是：Flink 会把它纳入容错体系。Checkpoint 时，状态和 Kafka offset 等进度会一起保存；失败恢复时，Flink 可以从最近一次 checkpoint 重新构建状态。本文后面讨论 HashMapStateBackend 和 RocksDB，不是在讨论业务语义变不变，而是在讨论“状态放在哪里、能放多大、访问代价有多高”。
+
+---
+
 ## Step 1 原理：五种 Keyed State 与 Operator State
 
 ### ① Keyed State 对比（按状态大小 / 访问模式选型）

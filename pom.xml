@@ -147,6 +147,13 @@
             <version>2.8.1</version>
         </dependency>
 
+        <!-- Guava Cache（维表 Join Demo 本地缓存） -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>31.1-jre</version>
+        </dependency>
+
         <!-- 单元测试 -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
