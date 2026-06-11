@@ -20,6 +20,12 @@ public class EducationIntervalJoinFunction
                         "INTERVAL_JOIN",
                         exposure,
                         click,
-                        "click.ts is in [exposure.ts, exposure.ts + 10min]"));
+                        "click.ts in [exposure.ts, exposure.ts + upperBound]"));
+        System.out.printf(
+                "[INTERVAL-JOIN] requestId=%s exposure=%s click=%s delayMs=%d%n",
+                exposure.getRequestId(),
+                exposure.getExposureId(),
+                click.getClickId(),
+                click.getTs() - exposure.getTs());
     }
 }
